@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Literal
 from fastapi import FastAPI
 from pydantic import BaseModel
 from gemini import gemini_text_call
@@ -29,6 +29,8 @@ def update_item(item_id: int, item: Item):
 
 class GeminiRequest(BaseModel):
     prompt: str
+    model: Union[str, None] = None
+    return_type: Union[Literal["text"], Literal["json"], None] = None
 
 
 @app.post("/gemini")
