@@ -21,7 +21,7 @@ def gemini_text_call(
 
     response = client.models.generate_content(
         model="gemini-2.0-flash",
-        contents=[prompt],
+        contents=[f"{schema_text} {prompt}"],
     )
     print(response.text)
     return response
