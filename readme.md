@@ -8,8 +8,16 @@ Clone the repo into a local directory
 
 create a virtual environment
 
-`python3 -m venv venv`
+`python -m venv venv`
+
+or if you already have one set up for this project, use
+
+`source .venv/bin/activate`
 
 install dependencies
 
-`pip install -q -U google-genai fastapi dotenv`
+`pip install -r requirements.txt`
+
+run the server
+
+`fastapi dev main.py`
