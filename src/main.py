@@ -1,7 +1,7 @@
 from typing import Union, Literal
 from fastapi import FastAPI
 from pydantic import BaseModel
-from src.backend.gemini import gemini_text_call
+from gemini import gemini_text_call
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -15,6 +15,7 @@ app.add_middleware(
     allow_methods=["POST", "GET", "PUT"],
     allow_headers=["*"],
 )
+
 
 class Item(BaseModel):
     name: str

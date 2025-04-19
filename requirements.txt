@@ -1,5 +1,5 @@
 python-dotenv
 google-genai
 google-cloud-texttospeech
-fastapi
+fastapi[standard]
 pydantic
