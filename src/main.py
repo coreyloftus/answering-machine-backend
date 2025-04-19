@@ -1,8 +1,10 @@
 from typing import Union, Literal
 from fastapi import FastAPI
 from pydantic import BaseModel
-from gemini import gemini_text_call, gemini_audio_call
+from gemini import gemini_text_call, gemini_audio_call, generate_gemini_stream
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import HTTPException
+from fastapi.responses import EventSourceResponse
 
 app = FastAPI()
 
@@ -54,3 +56,11 @@ def call_gemini(request: GeminiRequest):
 def call_gemini_audio(request: GeminiRequest):
     response = gemini_audio_call(request.prompt)
     return {"prompt": request.prompt, "response": response}
+
+
+@app.post("/gemini/stream")
+async def gemini_stream(data: dict):
+    prompt = data.get("prompt")
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt is required")
+    return EventSourceResponse(generate_gemini_stream(prompt))

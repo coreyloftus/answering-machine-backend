@@ -1,4 +1,7 @@
 import os
+import asyncio
+from fastapi import HTTPException
+from fastapi.responses import EventSourceResponse
 from dotenv import load_dotenv
 from google import genai
 from google.cloud import texttospeech
@@ -27,18 +30,19 @@ def gemini_text_call(
     print(response.text)
     return response
 
+
 def gemini_audio_call(
-        input_text=None,
-        voice_params="default",
-        user_audio_pref="default",
+    input_text=None,
+    voice_params="default",
+    user_audio_pref="default",
 ):
     client = texttospeech.TextToSpeechClient()
     systhesis_input = texttospeech.SynthesisInput(text=input_text)
-    if (voice_params== "default"):
+    if voice_params == "default":
         voice = texttospeech.VoiceSelectionParams(
             language_code="en-US", ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
         )
-    if (user_audio_pref == "default"):
+    if user_audio_pref == "default":
         audio_config = texttospeech.AudioConfig(
             audio_encoding=texttospeech.AudioEncoding.MP3
         )
@@ -46,3 +50,14 @@ def gemini_audio_call(
         input=systhesis_input, voice=voice, audio_config=audio_config
     )
     return response.audio_content
+
+
+async def generate_gemini_stream(prompt: str):
+    model = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=[prompt],
+        stream=True,
+    )
+    for chunk in model:
+        yield {"data": chunk.text if chunk.text else ""}
+        await asyncio.sleep(0.02)
