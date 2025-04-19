@@ -1,3 +1,5 @@
-google-genai
-fastapi
 python-dotenv
+google-genai
+google-cloud-texttospeech
+fastapi
+pydantic

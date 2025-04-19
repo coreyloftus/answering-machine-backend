@@ -1,5 +1,3 @@
-.environment
-.environment.local
 .env
-.env.local
-.env.development
+/src/__pycache__
+/venv
