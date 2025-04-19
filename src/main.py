@@ -1,7 +1,7 @@
 from typing import Union, Literal
 from fastapi import FastAPI
 from pydantic import BaseModel
-from gemini import gemini_text_call
+from gemini import gemini_text_call, gemini_audio_call
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -28,14 +28,14 @@ def read_root() -> dict:
     return {"Hello": "World"}
 
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": str(item_id), "q": q}
+# @app.get("/items/{item_id}")
+# def read_item(item_id: int, q: Union[str, None] = None):
+#     return {"item_id": str(item_id), "q": q}
 
 
-@app.put("/items/{item_id}")
-def update_item(item_id: int, item: Item):
-    return {"item_name": item.name, "item_id": item_id}
+# @app.put("/items/{item_id}")
+# def update_item(item_id: int, item: Item):
+#     return {"item_name": item.name, "item_id": item_id}
 
 
 class GeminiRequest(BaseModel):
@@ -47,4 +47,10 @@ class GeminiRequest(BaseModel):
 @app.post("/gemini")
 def call_gemini(request: GeminiRequest):
     response = gemini_text_call(request.prompt)
+    return {"prompt": request.prompt, "response": response}
+
+
+@app.post("/gemini/audio")
+def call_gemini_audio(request: GeminiRequest):
+    response = gemini_audio_call(request.prompt)
     return {"prompt": request.prompt, "response": response}
