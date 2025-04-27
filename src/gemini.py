@@ -1,7 +1,5 @@
 import os
 import asyncio
-from fastapi import HTTPException
-from fastapi.responses import EventSourceResponse
 from dotenv import load_dotenv
 from google import genai
 from google.cloud import texttospeech
