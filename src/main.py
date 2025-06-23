@@ -1,7 +1,12 @@
 from typing import Union, Literal
 from fastapi import FastAPI
 from pydantic import BaseModel
-from gemini import gemini_text_call, gemini_audio_call, generate_gemini_stream
+from gemini import (
+    gemini_text_call,
+    gemini_audio_call,
+    generate_gemini_stream,
+    sanity_check,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import HTTPException
 from fastapi.responses import Response
@@ -30,20 +35,18 @@ def read_root() -> dict:
     return {"Hello": "World"}
 
 
-# @app.get("/items/{item_id}")
-# def read_item(item_id: int, q: Union[str, None] = None):
-#     return {"item_id": str(item_id), "q": q}
-
-
-# @app.put("/items/{item_id}")
-# def update_item(item_id: int, item: Item):
-#     return {"item_name": item.name, "item_id": item_id}
-
-
 class GeminiRequest(BaseModel):
     prompt: str
     model: Union[str, None] = None
     return_type: Union[Literal["text"], Literal["json"], None] = None
+
+
+@app.post("/sanity_check")
+def call_sanity_check(request: GeminiRequest):
+    response = sanity_check(request.prompt)
+    if not response:
+        raise HTTPException(status_code=400, detail="Sanity check failed")
+    return {"status": "sanity check passed"}
 
 
 @app.post("/gemini")

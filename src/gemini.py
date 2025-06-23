@@ -10,6 +10,16 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 
+def sanity_check(req: str):
+    if not req:
+        raise ValueError("Request cannot be empty")
+    if not isinstance(req, str):
+        raise TypeError("Request must be a string")
+    if len(req) > 4096:
+        raise ValueError("Request exceeds maximum length of 4096 characters")
+    return True
+
+
 def gemini_text_call(
     prompt=None,
     model=None,
