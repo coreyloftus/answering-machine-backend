@@ -1,14 +1,18 @@
 import os
 import json
 import asyncio
+import uuid
 from dotenv import load_dotenv
+from fastapi import UploadFile, File, HTTPException
 from google import genai
 from google.cloud import texttospeech
 from google.oauth2 import service_account
+from google.cloud import storage
 
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_VOICE_API_KEY_JSON = os.getenv("GEMINI_VOICE_API_KEY_JSON")
+gemini_api_key = os.getenv("GEMINI_API_KEY")
+service_account_key_json = os.getenv("GEMINI_VOICE_API_KEY_JSON")
+gcs_storage_bucket = os.getenv("GCS_STORAGE_BUCKET")
 
 
 def sanity_check(req: str):
@@ -21,12 +25,29 @@ def sanity_check(req: str):
     return True
 
 
+def get_google_credentials():
+    """Get Google Cloud credentials from the environment variable."""
+    if not service_account_key_json:
+        print("ERROR:: GEMINI_VOICE_API_KEY_JSON is not set.")
+        return None
+    try:
+        service_account_info = json.loads(service_account_key_json)
+        credentials = service_account.Credentials.from_service_account_info(
+            service_account_info
+        )
+        print("Using service account credentials for Gemini API.")
+        return credentials
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON from GEMINI_VOICE_API_KEY_JSON: {e}")
+        return None
+
+
 def gemini_text_call(
     prompt=None,
     model=None,
     return_type=None,
 ):
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    client = genai.Client(api_key=gemini_api_key)
     if not model:
         model = "gemini-2.0-flash"
 
@@ -46,19 +67,7 @@ def gemini_audio_call(
     voice_params="default",
     user_audio_pref="default",
 ):
-    if not GEMINI_VOICE_API_KEY_JSON:
-        print("ERROR:: GEMINI_VOICE_API_KEY_JSON is not set.")
-        credentials = None
-    else:
-        try:
-            service_account_info = json.loads(GEMINI_VOICE_API_KEY_JSON)
-            credentials = service_account.Credentials.from_service_account_info(
-                service_account_info
-            )
-            print("Using service account credentials for Gemini API.")
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON from GEMINI_VOICE_API_KEY_JSON: {e}")
-            credentials = None
+    credentials = get_google_credentials()
     if credentials:
         client = texttospeech.TextToSpeechClient(credentials=credentials)
     else:
@@ -85,7 +94,7 @@ def gemini_audio_call(
 
 
 async def generate_gemini_stream(prompt: str):
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    client = genai.Client(api_key=gemini_api_key)
     model = client.models.generate_content(
         model="gemini-2.0-flash",
         contents=[prompt],
@@ -94,3 +103,34 @@ async def generate_gemini_stream(prompt: str):
     for chunk in model:
         yield {"data": chunk.text if chunk.text else ""}
         await asyncio.sleep(0.02)
+
+
+async def upload_file_to_gcs(file: UploadFile = File(...)):
+    """Upload an audio file to Google Cloud Storage."""
+    credentials = get_google_credentials()
+    storage_client = storage.Client(credentials=credentials)
+    bucket_name = os.getenv("GCS_BUCKET_NAME")
+
+    try:
+        bucket = storage_client.bucket(bucket_name)
+        file_extension = os.path.splitext(file.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        blob = bucket.blob(unique_filename)
+        blob.upload_from_file(file.file, content_type=file.content_type)
+        print(
+            f"File {file.filename} uploaded to gs://{gcs_storage_bucket}/{unique_filename}."
+        )
+
+        blob.make_public()
+        public_url = blob.public_url
+        print(f"Public URL: {public_url}")
+        return {
+            "message": "File uploaded successfully",
+            "public_url": public_url,
+            "file_name": unique_filename,
+        }
+    except Exception as e:
+        print(f"Failed to access bucket {bucket_name}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to upload file to GCS. {e}"
+        )

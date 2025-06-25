@@ -1,4 +1,3 @@
 .env
 /src/__pycache__
 /venv
-// why is my .env file not being ignored? it is in the same directory as this .gitignore file

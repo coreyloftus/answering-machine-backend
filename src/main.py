@@ -6,6 +6,7 @@ from gemini import (
     gemini_audio_call,
     generate_gemini_stream,
     sanity_check,
+    upload_file_to_gcs,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import HTTPException
@@ -22,17 +23,6 @@ app.add_middleware(
     allow_methods=["POST", "GET", "PUT"],
     allow_headers=["*"],
 )
-
-
-class Item(BaseModel):
-    name: str
-    price: float
-    is_offer: Union[bool, None] = None
-
-
-@app.get("/")
-def read_root() -> dict:
-    return {"Hello": "World"}
 
 
 class GeminiRequest(BaseModel):
@@ -68,3 +58,9 @@ async def gemini_stream(data: dict):
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt is required")
     return Response(generate_gemini_stream(prompt))
+
+
+@app.post("/gcs/upload")
+async def call_upload_audio_file_to_gcs(file: bytes):
+    response = await upload_file_to_gcs(file)
+    return Response(content=response, media_type="application/json")
