@@ -8,6 +8,7 @@ from gemini import (
     sanity_check,
     upload_file_to_gcs,
 )
+from twilio import make_twilio_call
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import HTTPException
 from fastapi.responses import Response
@@ -63,4 +64,10 @@ async def gemini_stream(data: dict):
 @app.post("/gcs/upload")
 async def call_upload_audio_file_to_gcs(file: bytes):
     response = await upload_file_to_gcs(file)
+    return Response(content=response, media_type="application/json")
+
+
+@app.post("/twilio/call")
+async def call_make_twilio_call(to_phone_number: str, audio_file_url: str):
+    response = await make_twilio_call(to_phone_number, audio_file_url)
     return Response(content=response, media_type="application/json")
