@@ -1,5 +1,5 @@
 from typing import Union, Literal
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 from google_calls import (
     gemini_text_call,
@@ -62,9 +62,12 @@ async def gemini_stream(data: dict):
 
 
 @app.post("/gcs/upload")
-async def call_upload_audio_file_to_gcs(file: bytes):
-    response = await upload_file_to_gcs(file)
-    return Response(content=response, media_type="application/json")
+async def call_upload_audio_file_to_gcs(file: UploadFile = File(...)):
+    try:
+        response = await upload_file_to_gcs(file)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/twilio/call")

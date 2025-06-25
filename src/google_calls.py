@@ -110,26 +110,29 @@ async def upload_file_to_gcs(file: UploadFile = File(...)):
     """Upload an audio file to Google Cloud Storage."""
     credentials = get_google_credentials()
     storage_client = storage.Client(credentials=credentials)
-    bucket_name = os.getenv("GCS_BUCKET_NAME")
+    bucket_name = gcs_storage_bucket
 
     try:
         bucket = storage_client.bucket(bucket_name)
+
         file_extension = os.path.splitext(file.filename)[1]
         unique_filename = f"{uuid.uuid4()}{file_extension}"
         blob = bucket.blob(unique_filename)
+
         blob.upload_from_file(file.file, content_type=file.content_type)
-        print(
-            f"File {file.filename} uploaded to gs://{gcs_storage_bucket}/{unique_filename}."
+        print(f"File {file.filename} uploaded to gs://{bucket_name}/{unique_filename}.")
+
+        # Generate a signed URL for temporary access (expires in 1 hour)
+        signed_url = blob.generate_signed_url(
+            version="v4", expiration=3600, method="GET"  # 1 hour
         )
 
-        blob.make_public()
-        public_url = blob.public_url
-        print(f"Public URL: {public_url}")
-        return {
+        response_data = {
             "message": "File uploaded successfully",
-            "public_url": public_url,
+            "signed_url": signed_url,
             "file_name": unique_filename,
         }
+        return response_data
     except Exception as e:
         print(f"Failed to access bucket {bucket_name}: {e}")
         raise HTTPException(
