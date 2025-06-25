@@ -1,14 +1,14 @@
 from typing import Union, Literal
 from fastapi import FastAPI
 from pydantic import BaseModel
-from gemini import (
+from google_calls import (
     gemini_text_call,
     gemini_audio_call,
     generate_gemini_stream,
     sanity_check,
     upload_file_to_gcs,
 )
-from twilio import make_twilio_call
+from twilio_calls import make_twilio_call
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import HTTPException
 from fastapi.responses import Response

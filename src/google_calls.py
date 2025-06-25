@@ -11,7 +11,7 @@ from google.cloud import storage
 
 load_dotenv()
 gemini_api_key = os.getenv("GEMINI_API_KEY")
-service_account_key_json = os.getenv("GEMINI_VOICE_API_KEY_JSON")
+service_account_key_json = os.getenv("SERVICE_ACCOUNT_KEY_JSON")
 gcs_storage_bucket = os.getenv("GCS_STORAGE_BUCKET")
 
 
@@ -72,6 +72,7 @@ def gemini_audio_call(
         client = texttospeech.TextToSpeechClient(credentials=credentials)
     else:
         print("no credentials provided, try again")
+        return None
     systhesis_input = texttospeech.SynthesisInput(text=input_text)
     if voice_params == "default":
         voice = texttospeech.VoiceSelectionParams(

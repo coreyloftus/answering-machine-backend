@@ -26,10 +26,14 @@ def make_twilio_call(to_phone_number: str, audio_file_url: str) -> str:
     if not audio_file_url:
         raise ValueError("Audio File URL not set.")
     twiml_xml = generate_twiml_for_call(audio_file_url)
-    call = client.calls.create(
-        to=to_phone_number, from_=twilio_phone_number, twiml=twiml_xml
-    )
-    print(f"Call initiated with SID: {call.sid}")
+    try:
+        call = client.calls.create(
+            to=to_phone_number, from_=twilio_phone_number, twiml=twiml_xml
+        )
+        print(f"Call initiated with SID: {call.sid}")
+    except Exception as e:
+        print(f"Failed to initiate call: {e}")
+        raise e
     return {
         "message": "Call initiated successfully",
         "call_sid": call.sid,
