@@ -13,9 +13,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import HTTPException
 from fastapi.responses import Response
 
-app = FastAPI()
+app = FastAPI(title="Answering Machine API", version="1.0.0")
 
-origins = ["http://localhost:3000", "http://192.168.86.77:3000"]
+# Update origins to include Cloud Run URLs
+origins = [
+    "http://localhost:3000",
+    "http://192.168.86.77:3000",
+    "https://*.run.app",  # Allow Cloud Run URLs
+    "*",  # Allow all origins for development
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,6 +30,18 @@ app.add_middleware(
     allow_methods=["POST", "GET", "PUT"],
     allow_headers=["*"],
 )
+
+
+@app.get("/")
+async def root():
+    """Health check endpoint"""
+    return {"message": "Answering Machine API is running", "status": "healthy"}
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Cloud Run"""
+    return {"status": "healthy", "service": "answering-machine-api"}
 
 
 class GeminiRequest(BaseModel):
