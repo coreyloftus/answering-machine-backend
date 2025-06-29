@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r re
 COPY . .
 
 # ---- Permissions / non‑root user -------------------------------------------
-RUN chmod +x start.sh && adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser "${APP_HOME}"
+RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser "${APP_HOME}"
 
 USER appuser
 
@@ -28,4 +28,4 @@ EXPOSE ${PORT}
 
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 CMD curl -f http://localhost:${PORT}/health || exit 1
 
-CMD ["./start.sh"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080", "--log-level", "info"]
