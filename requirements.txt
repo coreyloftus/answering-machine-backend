@@ -1,0 +1,7 @@
+python-dotenv
+google-genai
+google-cloud-texttospeech
+fastapi[standard]
+pydantic
+twilio
+uvicorn
