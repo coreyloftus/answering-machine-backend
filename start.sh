@@ -19,7 +19,18 @@ fi
 # Set default port if not provided
 export PORT=${PORT:-8080}
 
+# Check for required environment variables and set defaults if missing
+echo "Checking environment variables..."
+
+# Set default values for required env vars to prevent crashes
+export GEMINI_API_KEY=${GEMINI_API_KEY:-""}
+export SERVICE_ACCOUNT_KEY_JSON=${SERVICE_ACCOUNT_KEY_JSON:-""}
+export GCS_STORAGE_BUCKET=${GCS_STORAGE_BUCKET:-""}
+export TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-""}
+export TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-""}
+export TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER:-""}
+
 echo "Starting uvicorn server on port $PORT..."
 
-# Start the application
-exec uvicorn src.main:app --host 0.0.0.0 --port $PORT --workers 1
+# Start the application with better error handling
+exec uvicorn src.main:app --host 0.0.0.0 --port $PORT --workers 1 --log-level info

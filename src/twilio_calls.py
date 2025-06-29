@@ -1,12 +1,23 @@
 import os
 from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse
+from fastapi import HTTPException
 
 account_sid = os.getenv("TWILIO_ACCOUNT_SID")
 auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 twilio_phone_number = os.getenv("TWILIO_PHONE_NUMBER")
 
-client = Client(account_sid, auth_token)
+# Add logging for debugging
+print(f"TWILIO_ACCOUNT_SID present: {bool(account_sid)}")
+print(f"TWILIO_AUTH_TOKEN present: {bool(auth_token)}")
+print(f"TWILIO_PHONE_NUMBER present: {bool(twilio_phone_number)}")
+
+# Only create client if credentials are available
+if account_sid and auth_token:
+    client = Client(account_sid, auth_token)
+else:
+    client = None
+    print("WARNING: Twilio credentials not configured")
 
 
 def generate_twiml_for_call(audio_file_url: str) -> str:
@@ -21,6 +32,9 @@ def generate_twiml_for_call(audio_file_url: str) -> str:
 
 def make_twilio_call(to_phone_number: str, audio_file_url: str) -> str:
     """Make Twilio Phone call with the provided audio file URL."""
+    if not client:
+        raise HTTPException(status_code=500, detail="Twilio credentials not configured")
+
     if not to_phone_number:
         raise ValueError("To phone number is not set.")
     if not audio_file_url:

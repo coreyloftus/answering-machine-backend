@@ -14,6 +14,11 @@ gemini_api_key = os.getenv("GEMINI_API_KEY")
 service_account_key_json = os.getenv("SERVICE_ACCOUNT_KEY_JSON")
 gcs_storage_bucket = os.getenv("GCS_STORAGE_BUCKET")
 
+# Add logging for debugging
+print(f"GEMINI_API_KEY present: {bool(gemini_api_key)}")
+print(f"SERVICE_ACCOUNT_KEY_JSON present: {bool(service_account_key_json)}")
+print(f"GCS_STORAGE_BUCKET present: {bool(gcs_storage_bucket)}")
+
 
 def sanity_check(req: str):
     if not req:
@@ -28,7 +33,7 @@ def sanity_check(req: str):
 def get_google_credentials():
     """Get Google Cloud credentials from the environment variable."""
     if not service_account_key_json:
-        print("ERROR:: GEMINI_VOICE_API_KEY_JSON is not set.")
+        print("WARNING: SERVICE_ACCOUNT_KEY_JSON is not set.")
         return None
     try:
         service_account_info = json.loads(service_account_key_json)
@@ -38,7 +43,7 @@ def get_google_credentials():
         print("Using service account credentials for Gemini API.")
         return credentials
     except json.JSONDecodeError as e:
-        print(f"Error decoding JSON from GEMINI_VOICE_API_KEY_JSON: {e}")
+        print(f"Error decoding JSON from SERVICE_ACCOUNT_KEY_JSON: {e}")
         return None
 
 
@@ -47,6 +52,9 @@ def gemini_text_call(
     model=None,
     return_type=None,
 ):
+    if not gemini_api_key:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
+
     client = genai.Client(api_key=gemini_api_key)
     if not model:
         model = "gemini-2.0-flash"
@@ -95,6 +103,9 @@ def gemini_audio_call(
 
 
 async def generate_gemini_stream(prompt: str):
+    if not gemini_api_key:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
+
     client = genai.Client(api_key=gemini_api_key)
     model = client.models.generate_content(
         model="gemini-2.0-flash",
@@ -109,6 +120,14 @@ async def generate_gemini_stream(prompt: str):
 async def upload_file_to_gcs(file: UploadFile = File(...)):
     """Upload an audio file to Google Cloud Storage."""
     credentials = get_google_credentials()
+    if not credentials:
+        raise HTTPException(
+            status_code=500, detail="Google Cloud credentials not configured"
+        )
+
+    if not gcs_storage_bucket:
+        raise HTTPException(status_code=500, detail="GCS_STORAGE_BUCKET not configured")
+
     storage_client = storage.Client(credentials=credentials)
     bucket_name = gcs_storage_bucket
 
