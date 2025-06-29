@@ -1,31 +1,22 @@
-# ---- Base image -------------------------------------------------------------
+# Use a slim Python base image
 FROM python:3.9-slim
 
-# ---- Environment ------------------------------------------------------------
+# Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV APP_HOME=/app
 ENV PORT=8080
 
-# ---- OS packages ------------------------------------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends gcc curl && rm -rf /var/lib/apt/lists/*
+# Create and set working directory
+WORKDIR /app
 
-# ---- App setup --------------------------------------------------------------
-WORKDIR ${APP_HOME}
-
+# Copy requirements.txt and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy your application code
 COPY . .
 
-# ---- Permissions / non‑root user -------------------------------------------
-RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser "${APP_HOME}"
+# Expose the port
+EXPOSE 8080
 
-USER appuser
-
-# ---- Runtime config ---------------------------------------------------------
-EXPOSE ${PORT}
-
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 CMD curl -f http://localhost:${PORT}/health || exit 1
-
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080", "--log-level", "info"]
+# Command to run your application
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
