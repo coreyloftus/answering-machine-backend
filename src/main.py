@@ -21,7 +21,7 @@ print(
 # Try to import Google functionality
 try:
     print("Attempting to import google_calls...")
-    from .google_calls import (
+    from google_calls import (
         gemini_text_call,
         gemini_audio_call,
         generate_gemini_stream,
@@ -44,7 +44,7 @@ except Exception as e:
 # Try to import Twilio functionality
 try:
     print("Attempting to import twilio_calls...")
-    from .twilio_calls import make_twilio_call
+    from twilio_calls import make_twilio_call
 
     print("Twilio functionality imported successfully")
     TWILIO_AVAILABLE = True
