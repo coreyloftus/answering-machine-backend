@@ -70,7 +70,7 @@ def gemini_text_call(
     return response
 
 
-async def flowcode_demo_gemini_call(prompt: str):
+def flowcode_demo_gemini_call(prompt: str):
     if not gemini_api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
     client = genai.Client(api_key=gemini_api_key)

@@ -137,7 +137,7 @@ if GOOGLE_AVAILABLE:
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post("/flowcode_demo")
-    async def call_flowcode_demo(request: GeminiRequest):
+    def call_flowcode_demo(request: GeminiRequest):
         response = flowcode_demo_gemini_call(request.prompt)
         return {"prompt": request.prompt, "response": response}
 
