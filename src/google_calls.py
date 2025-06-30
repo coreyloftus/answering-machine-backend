@@ -70,6 +70,21 @@ def gemini_text_call(
     return response
 
 
+async def flowcode_demo_gemini_call(prompt: str):
+    if not gemini_api_key:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
+    client = genai.Client(api_key=gemini_api_key)
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash", contents=[prompt]
+        )
+        text_json_reply = response.candidates[0].content.parts[0].text
+        return text_json_reply
+    except Exception as e:
+        print(f"Error in flowcode_demo_gemini_call: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def gemini_audio_call(
     input_text=None,
     voice_params="default",

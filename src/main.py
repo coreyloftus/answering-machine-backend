@@ -27,6 +27,7 @@ try:
         generate_gemini_stream,
         sanity_check,
         upload_file_to_gcs,
+        flowcode_demo_gemini_call,
     )
 
     print("Google functionality imported successfully")
@@ -137,7 +138,7 @@ if GOOGLE_AVAILABLE:
 
     @app.post("/flowcode_demo")
     async def call_flowcode_demo(request: GeminiRequest):
-        response = gemini_text_call(request.prompt)
+        response = flowcode_demo_gemini_call(request.prompt)
         return {"prompt": request.prompt, "response": response}
 
     print("Google endpoints registered successfully")
