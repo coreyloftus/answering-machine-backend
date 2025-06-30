@@ -11,9 +11,17 @@ app = FastAPI(title="Answering Machine API", version="1.0.0")
 print("Starting Answering Machine API...")
 print("FastAPI app created successfully")
 
+# Debug: Check if files exist
+print(f"Current working directory: {os.getcwd()}")
+print(f"Files in current directory: {os.listdir('.')}")
+print(
+    f"Files in src directory: {os.listdir('src') if os.path.exists('src') else 'src directory not found'}"
+)
+
 # Try to import Google functionality
 try:
-    from google_calls import (
+    print("Attempting to import google_calls...")
+    from .google_calls import (
         gemini_text_call,
         gemini_audio_call,
         generate_gemini_stream,
@@ -25,11 +33,18 @@ try:
     GOOGLE_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Google functionality not available: {e}")
+    print(f"Import error type: {type(e)}")
+    print(f"Import error details: {str(e)}")
+    GOOGLE_AVAILABLE = False
+except Exception as e:
+    print(f"Unexpected error importing Google functionality: {e}")
+    print(f"Error type: {type(e)}")
     GOOGLE_AVAILABLE = False
 
 # Try to import Twilio functionality
 try:
-    from twilio_calls import make_twilio_call
+    print("Attempting to import twilio_calls...")
+    from .twilio_calls import make_twilio_call
 
     print("Twilio functionality imported successfully")
     TWILIO_AVAILABLE = True
@@ -86,6 +101,7 @@ class GeminiRequest(BaseModel):
 
 # Google Gemini endpoints (only if available)
 if GOOGLE_AVAILABLE:
+    print("Registering Google endpoints...")
 
     @app.post("/sanity_check")
     def call_sanity_check(request: GeminiRequest):
@@ -119,14 +135,23 @@ if GOOGLE_AVAILABLE:
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+    print("Google endpoints registered successfully")
+else:
+    print("Google endpoints NOT registered - functionality not available")
+
 
 # Twilio endpoints (only if available)
 if TWILIO_AVAILABLE:
+    print("Registering Twilio endpoints...")
 
     @app.post("/twilio/call")
     async def call_make_twilio_call(to_phone_number: str, audio_file_url: str):
         response = await make_twilio_call(to_phone_number, audio_file_url)
         return Response(content=response, media_type="application/json")
+
+    print("Twilio endpoints registered successfully")
+else:
+    print("Twilio endpoints NOT registered - functionality not available")
 
 
 print("All functionality loaded successfully")
