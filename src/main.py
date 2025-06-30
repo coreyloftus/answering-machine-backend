@@ -139,7 +139,7 @@ if GOOGLE_AVAILABLE:
     @app.post("/flowcode_demo")
     def call_flowcode_demo(request: GeminiRequest):
         response = flowcode_demo_gemini_call(request.prompt)
-        return {"prompt": request.prompt, "response": response}
+        return response
 
     print("Google endpoints registered successfully")
 else:
