@@ -74,12 +74,50 @@ def flowcode_demo_gemini_call(prompt: str):
     if not gemini_api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
     client = genai.Client(api_key=gemini_api_key)
+
+    # Enhanced prompt to ensure clean JSON output
+    enhanced_prompt = f"""
+{prompt}
+
+IMPORTANT: Respond with ONLY valid JSON. Do not include any markdown formatting, code blocks, or additional text. The response should be parseable directly by JSON.parse() in JavaScript.
+
+Example of correct format:
+{{"sentimentAnalysis": "frustrated", "sentimentBrief": "Customer is frustrated with payment issues", "category": "BILLING_ISSUE"}}
+
+NOT like this:
+```json
+{{"sentimentAnalysis": "frustrated"}}
+```
+"""
+
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash", contents=[prompt]
+            model="gemini-2.0-flash", contents=[enhanced_prompt]
         )
         text_json_reply = response.candidates[0].content.parts[0].text
-        return text_json_reply
+
+        # Clean up the response to remove any markdown formatting
+        cleaned_response = text_json_reply.strip()
+        if cleaned_response.startswith("```json"):
+            cleaned_response = cleaned_response[7:]  # Remove ```json
+        if cleaned_response.startswith("```"):
+            cleaned_response = cleaned_response[3:]  # Remove ```
+        if cleaned_response.endswith("```"):
+            cleaned_response = cleaned_response[:-3]  # Remove trailing ```
+
+        cleaned_response = cleaned_response.strip()
+
+        # Validate that it's valid JSON
+        try:
+            json.loads(cleaned_response)
+        except json.JSONDecodeError as e:
+            print(f"Invalid JSON response: {e}")
+            print(f"Raw response: {text_json_reply}")
+            raise HTTPException(
+                status_code=500, detail="Invalid JSON response from Gemini"
+            )
+
+        return cleaned_response
     except Exception as e:
         print(f"Error in flowcode_demo_gemini_call: {e}")
         raise HTTPException(status_code=500, detail=str(e))
