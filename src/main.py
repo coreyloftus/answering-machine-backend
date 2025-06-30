@@ -135,6 +135,11 @@ if GOOGLE_AVAILABLE:
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+    @app.post("/flowcode_demo")
+    async def call_flowcode_demo(request: GeminiRequest):
+        response = gemini_text_call(request.prompt)
+        return {"prompt": request.prompt, "response": response}
+
     print("Google endpoints registered successfully")
 else:
     print("Google endpoints NOT registered - functionality not available")

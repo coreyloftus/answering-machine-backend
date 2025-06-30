@@ -4,5 +4,6 @@ python-dotenv
 google-genai
 google-cloud-texttospeech
 google-cloud-storage
+python-multipart
 pydantic
 twilio
