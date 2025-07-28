@@ -105,12 +105,16 @@ if GOOGLE_AVAILABLE:
     print("Registering Google endpoints...")
 
     @app.post("/sanity_check")
-    def call_sanity_check(request: GeminiRequest):
+    def call_sanity_check(request: dict):
         try:
-            response = sanity_check(request.prompt)
+            response = sanity_check(request["prompt"])
             if not response:
                 raise HTTPException(status_code=400, detail="Sanity check failed")
             return {"status": "sanity check passed"}
+        except KeyError:
+            raise HTTPException(
+                status_code=400, detail="Missing 'prompt' field in request"
+            )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
         except TypeError as e:
@@ -132,7 +136,7 @@ if GOOGLE_AVAILABLE:
                     status_code=500,
                     detail="Audio generation failed - no audio content returned",
                 )
-            return Response(content=response, media_type="audio/mpeg")
+            return Response(content=response, media_type="audio/wav")
         except HTTPException:
             # Re-raise HTTPExceptions as-is
             raise
