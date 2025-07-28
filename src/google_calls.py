@@ -2,6 +2,8 @@ import os
 import json
 import asyncio
 import uuid
+import wave
+import io
 from dotenv import load_dotenv
 from fastapi import UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
@@ -21,6 +23,17 @@ gcs_storage_bucket = os.getenv("GCS_STORAGE_BUCKET")
 print(f"GEMINI_API_KEY present: {bool(gemini_api_key)}")
 print(f"SERVICE_ACCOUNT_KEY_JSON present: {bool(service_account_key_json)}")
 print(f"GCS_STORAGE_BUCKET present: {bool(gcs_storage_bucket)}")
+
+
+def create_wav_from_pcm(pcm_data, channels=1, rate=24000, sample_width=2):
+    """Create WAV file data from PCM data following Google's recommended approach."""
+    wav_buffer = io.BytesIO()
+    with wave.open(wav_buffer, "wb") as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(sample_width)
+        wf.setframerate(rate)
+        wf.writeframes(pcm_data)
+    return wav_buffer.getvalue()
 
 
 def sanity_check(req: str):
@@ -122,8 +135,6 @@ NOT like this:
 
 def gemini_audio_call(
     input_text=None,
-    voice_params="default",
-    user_audio_pref="default",
 ):
     if not input_text:
         raise HTTPException(
@@ -137,7 +148,7 @@ def gemini_audio_call(
         # Generate audio using Gemini TTS
         response = client.models.generate_content(
             model="gemini-2.5-flash-preview-tts",
-            contents=[input_text],  # Use actual input_text, not f-string
+            contents=[input_text],
             config=types.GenerateContentConfig(
                 response_modalities=["AUDIO"],
                 speech_config=types.SpeechConfig(
@@ -150,11 +161,15 @@ def gemini_audio_call(
             ),
         )
 
-        # Extract the audio data (this is your PCM data)
-        audio_data = response.candidates[0].content.parts[0].inline_data.data
+        # Extract the audio data (this is raw PCM data)
+        pcm_data = response.candidates[0].content.parts[0].inline_data.data
 
-        print(f"Audio generation successful. Content length: {len(audio_data)} bytes")
-        return audio_data
+        print(f"Audio generation successful. PCM length: {len(pcm_data)} bytes")
+
+        # Convert PCM to WAV format using Google's recommended approach
+        wav_data = create_wav_from_pcm(pcm_data)
+        print(f"WAV conversion successful. WAV length: {len(wav_data)} bytes")
+        return wav_data
 
     except HTTPException:
         # Re-raise HTTPExceptions as-is
