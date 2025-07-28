@@ -6,7 +6,9 @@ from dotenv import load_dotenv
 from fastapi import UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from google import genai
-from google.cloud import texttospeech
+from google.genai import types
+
+# from google.cloud import texttospeech
 from google.oauth2 import service_account
 from google.cloud import storage
 
@@ -128,51 +130,38 @@ def gemini_audio_call(
             status_code=400, detail="Input text is required for audio generation"
         )
 
-    credentials = get_google_credentials()
-    if not credentials:
-        raise HTTPException(
-            status_code=500,
-            detail="Google Cloud credentials not configured. Please check SERVICE_ACCOUNT_KEY_JSON environment variable.",
-        )
-
     try:
-        client = texttospeech.TextToSpeechClient(credentials=credentials)
-        synthesis_input = texttospeech.SynthesisInput(text=input_text)
+        # Initialize Gemini client
+        client = genai.Client(api_key=gemini_api_key)
 
-        if voice_params == "default":
-            voice = texttospeech.VoiceSelectionParams(
-                language_code="en-US", ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
-            )
-
-        if user_audio_pref == "default":
-            audio_config = texttospeech.AudioConfig(
-                audio_encoding=texttospeech.AudioEncoding.MP3
-            )
-            print("Using default audio config: MP3 encoding")
-
-        response = client.synthesize_speech(
-            input=synthesis_input, voice=voice, audio_config=audio_config
+        # Generate audio using Gemini TTS
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-preview-tts",
+            contents=[input_text],  # Use actual input_text, not f-string
+            config=types.GenerateContentConfig(
+                response_modalities=["AUDIO"],
+                speech_config=types.SpeechConfig(
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                            voice_name="Zephyr"
+                        ),
+                    ),
+                ),
+            ),
         )
 
-        if not response.audio_content:
-            raise HTTPException(
-                status_code=500,
-                detail="No audio content returned from Google Text-to-Speech synthesis",
-            )
+        # Extract the audio data (this is your PCM data)
+        audio_data = response.candidates[0].content.parts[0].inline_data.data
 
-        print(
-            f"Audio generation successful. Content length: {len(response.audio_content)} bytes"
-        )
-        return response.audio_content
+        print(f"Audio generation successful. Content length: {len(audio_data)} bytes")
+        return audio_data
 
     except HTTPException:
         # Re-raise HTTPExceptions as-is
         raise
     except Exception as e:
         print(f"Error in gemini_audio_call: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Google Text-to-Speech API error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Gemini TTS API error: {str(e)}")
 
 
 def generate_gemini_stream(prompt: str):
