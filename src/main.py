@@ -2,7 +2,7 @@ from typing import Union, Literal
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 import os
 
 app = FastAPI(title="Answering Machine API", version="1.0.0")
@@ -106,10 +106,17 @@ if GOOGLE_AVAILABLE:
 
     @app.post("/sanity_check")
     def call_sanity_check(request: GeminiRequest):
-        response = sanity_check(request.prompt)
-        if not response:
-            raise HTTPException(status_code=400, detail="Sanity check failed")
-        return {"status": "sanity check passed"}
+        try:
+            response = sanity_check(request.prompt)
+            if not response:
+                raise HTTPException(status_code=400, detail="Sanity check failed")
+            return {"status": "sanity check passed"}
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
+        except TypeError as e:
+            raise HTTPException(status_code=400, detail=f"Type error: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
     @app.post("/gemini")
     def call_gemini(request: GeminiRequest):
@@ -118,15 +125,28 @@ if GOOGLE_AVAILABLE:
 
     @app.post("/gemini/audio")
     def call_gemini_audio(request: GeminiRequest):
-        response = gemini_audio_call(request.prompt)
-        return Response(content=response, media_type="audio/mpeg")
+        try:
+            response = gemini_audio_call(request.prompt)
+            if response is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Audio generation failed - no audio content returned",
+                )
+            return Response(content=response, media_type="audio/mpeg")
+        except HTTPException:
+            # Re-raise HTTPExceptions as-is
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Audio generation error: {str(e)}"
+            )
 
     @app.post("/gemini/stream")
     async def gemini_stream(data: dict):
         prompt = data.get("prompt")
         if not prompt:
             raise HTTPException(status_code=400, detail="Prompt is required")
-        return Response(generate_gemini_stream(prompt))
+        return generate_gemini_stream(prompt)
 
     @app.post("/gcs/upload")
     async def call_upload_audio_file_to_gcs(file: UploadFile = File(...)):
