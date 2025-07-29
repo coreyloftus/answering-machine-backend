@@ -1,11 +1,15 @@
 from typing import Union, Literal
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 import os
+from datetime import datetime
 
 app = FastAPI(title="Answering Machine API", version="1.0.0")
+
+# Simple in-memory storage for call history (for tech demo purposes)
+call_history = {}
 
 # Add startup logging
 print("Starting Answering Machine API...")
@@ -45,7 +49,7 @@ except Exception as e:
 # Try to import Twilio functionality
 try:
     print("Attempting to import twilio_calls...")
-    from twilio_calls import make_twilio_call
+    from twilio_calls import make_twilio_call, get_twilio_status, get_call_status
 
     print("Twilio functionality imported successfully")
     TWILIO_AVAILABLE = True
@@ -100,27 +104,30 @@ class GeminiRequest(BaseModel):
     return_type: Union[Literal["text"], Literal["json"], None] = None
 
 
+class TwilioCallRequest(BaseModel):
+    to_phone_number: str
+    audio_file_url: str
+
+
+class CallRecord(BaseModel):
+    call_sid: str
+    to_phone_number: str
+    audio_file_url: str
+    status: str = "queued"
+    created_at: datetime
+    updated_at: datetime
+    duration: str = None
+    price: str = None
+    error_message: str = None
+
+
 # Google Gemini endpoints (only if available)
 if GOOGLE_AVAILABLE:
     print("Registering Google endpoints...")
 
     @app.post("/sanity_check")
-    def call_sanity_check(request: dict):
-        try:
-            response = sanity_check(request["prompt"])
-            if not response:
-                raise HTTPException(status_code=400, detail="Sanity check failed")
-            return {"status": "sanity check passed"}
-        except KeyError:
-            raise HTTPException(
-                status_code=400, detail="Missing 'prompt' field in request"
-            )
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
-        except TypeError as e:
-            raise HTTPException(status_code=400, detail=f"Type error: {str(e)}")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+    def call_sanity_check():
+        return {"status": True}
 
     @app.post("/gemini")
     def call_gemini(request: GeminiRequest):
@@ -174,10 +181,96 @@ else:
 if TWILIO_AVAILABLE:
     print("Registering Twilio endpoints...")
 
+    @app.get("/twilio/status")
+    def call_twilio_status():
+        """Get Twilio account status and balance information"""
+        response = get_twilio_status()
+        return response
+
+    @app.get("/twilio/call/{call_sid}/status")
+    def get_twilio_call_status(call_sid: str):
+        """Get status of a specific Twilio call"""
+        # First check our local storage
+        if call_sid in call_history:
+            stored_call = call_history[call_sid]
+            return {"success": True, "source": "local_storage", **stored_call}
+
+        # Fall back to Twilio API
+        response = get_call_status(call_sid)
+        return response
+
+    @app.post("/twilio/call/{call_sid}/status")
+    async def handle_twilio_status_callback(
+        call_sid: str,
+        CallStatus: str = Form(...),
+        CallDuration: str = Form(None),
+        CallPrice: str = Form(None),
+        ErrorMessage: str = Form(None),
+        # Twilio sends many more fields, but these are the key ones
+    ):
+        """Handle Twilio status callback webhook"""
+        print(f"📞 Callback received for call {call_sid}: {CallStatus}")
+
+        # Update our stored call record
+        if call_sid in call_history:
+            call_history[call_sid].update(
+                {
+                    "status": CallStatus,
+                    "updated_at": datetime.now().isoformat(),
+                    "duration": CallDuration,
+                    "price": CallPrice,
+                    "error_message": ErrorMessage,
+                }
+            )
+            print(f"✅ Updated call {call_sid} in storage")
+        else:
+            # This shouldn't happen, but let's handle it gracefully
+            print(f"⚠️  Received callback for unknown call {call_sid}")
+
+        # Return TwiML response (required by Twilio)
+        return Response(content="<Response></Response>", media_type="application/xml")
+
+    @app.get("/twilio/calls")
+    def get_all_calls():
+        """Get all calls from local storage (for tech demo purposes)"""
+        return {
+            "success": True,
+            "calls": list(call_history.values()),
+            "total_calls": len(call_history),
+        }
+
     @app.post("/twilio/call")
-    async def call_make_twilio_call(to_phone_number: str, audio_file_url: str):
-        response = await make_twilio_call(to_phone_number, audio_file_url)
-        return Response(content=response, media_type="application/json")
+    async def call_make_twilio_call(request: TwilioCallRequest):
+        # testing
+        # print(f"Request received: {request}")
+        # requestEcho = {
+        #     "to_phone_number": request.to_phone_number,
+        #     "audio_file_url": request.audio_file_url,
+        # }
+        # return requestEcho  # FastAPI automatically converts to JSON
+
+        # actual call
+        response = await make_twilio_call(
+            request.to_phone_number, request.audio_file_url
+        )
+
+        # Store call information in our simple storage
+        call_sid = response["call_sid"]
+        now = datetime.now()
+        call_history[call_sid] = {
+            "call_sid": call_sid,
+            "to_phone_number": request.to_phone_number,
+            "audio_file_url": request.audio_file_url,
+            "status": "queued",  # Initial status
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+            "duration": None,
+            "price": None,
+            "error_message": None,
+        }
+
+        print(f"📝 Stored call {call_sid} in local storage")
+        return response
 
     print("Twilio endpoints registered successfully")
 else:
