@@ -88,8 +88,13 @@ async def make_twilio_call(to_phone_number: str, audio_file_url: str) -> str:
         print(f"Call initiated with SID: {call.sid}")
     except Exception as e:
         print(f"Failed to initiate call: {e}")
-        raise e
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to initiate call",
+        }
     return {
+        "success": True,
         "message": "Call initiated successfully",
         "call_sid": call.sid,
         "audio_file_url": audio_file_url,
