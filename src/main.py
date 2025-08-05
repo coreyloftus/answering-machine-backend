@@ -1,12 +1,44 @@
 from typing import Union, Literal
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Depends, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 import os
 from datetime import datetime
+import secrets
 
 app = FastAPI(title="Answering Machine API", version="1.0.0")
+
+# Authentication setup
+security = HTTPBearer()
+API_KEY = os.getenv("RICK_ROLL_API_KEY")
+
+# Generate a secure API key if none is provided (for development)
+if not API_KEY:
+    print(
+        "⚠️  WARNING: No API_KEY environment variable found. Generating a temporary one for development."
+    )
+    API_KEY = secrets.token_urlsafe(32)
+    print(f"🔑 Development API Key: {API_KEY}")
+    print("   Add this to your frontend and environment variables!")
+
+
+def verify_api_key(
+    credentials: HTTPAuthorizationCredentials = Security(security),
+) -> str:
+    """
+    Verify the API key from the Authorization header.
+    Expected format: Authorization: Bearer <api_key>
+    """
+    if credentials.credentials != API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return credentials.credentials
+
 
 # Simple in-memory storage for call history (for tech demo purposes)
 call_history = {}
@@ -126,16 +158,18 @@ if GOOGLE_AVAILABLE:
     print("Registering Google endpoints...")
 
     @app.post("/sanity_check")
-    def call_sanity_check():
+    def call_sanity_check(api_key: str = Depends(verify_api_key)):
         return {"status": True}
 
     @app.post("/gemini")
-    def call_gemini(request: GeminiRequest):
+    def call_gemini(request: GeminiRequest, api_key: str = Depends(verify_api_key)):
         response = gemini_text_call(request.prompt)
         return {"prompt": request.prompt, "response": response}
 
     @app.post("/gemini/audio")
-    def call_gemini_audio(request: GeminiRequest):
+    def call_gemini_audio(
+        request: GeminiRequest, api_key: str = Depends(verify_api_key)
+    ):
         try:
             response = gemini_audio_call(request.prompt)
             if response is None:
@@ -153,14 +187,16 @@ if GOOGLE_AVAILABLE:
             )
 
     @app.post("/gemini/stream")
-    async def gemini_stream(data: dict):
+    async def gemini_stream(data: dict, api_key: str = Depends(verify_api_key)):
         prompt = data.get("prompt")
         if not prompt:
             raise HTTPException(status_code=400, detail="Prompt is required")
         return generate_gemini_stream(prompt)
 
     @app.post("/gcs/upload")
-    async def call_upload_audio_file_to_gcs(file: UploadFile = File(...)):
+    async def call_upload_audio_file_to_gcs(
+        file: UploadFile = File(...), api_key: str = Depends(verify_api_key)
+    ):
         try:
             response = await upload_file_to_gcs(file)
             return response
@@ -168,7 +204,9 @@ if GOOGLE_AVAILABLE:
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post("/flowcode_demo")
-    def call_flowcode_demo(request: GeminiRequest):
+    def call_flowcode_demo(
+        request: GeminiRequest, api_key: str = Depends(verify_api_key)
+    ):
         response = flowcode_demo_gemini_call(request.prompt)
         return response
 
@@ -182,13 +220,13 @@ if TWILIO_AVAILABLE:
     print("Registering Twilio endpoints...")
 
     @app.get("/twilio/status")
-    def call_twilio_status():
+    def call_twilio_status(api_key: str = Depends(verify_api_key)):
         """Get Twilio account status and balance information"""
         response = get_twilio_status()
         return response
 
     @app.get("/twilio/call/{call_sid}/status")
-    def get_twilio_call_status(call_sid: str):
+    def get_twilio_call_status(call_sid: str, api_key: str = Depends(verify_api_key)):
         """Get status of a specific Twilio call"""
         # First check our local storage
         if call_sid in call_history:
@@ -208,7 +246,7 @@ if TWILIO_AVAILABLE:
         ErrorMessage: str = Form(None),
         # Twilio sends many more fields, but these are the key ones
     ):
-        """Handle Twilio status callback webhook"""
+        """Handle Twilio status callback webhook - NO AUTH required as Twilio calls this directly"""
         print(f"📞 Callback received for call {call_sid}: {CallStatus}")
 
         # Update our stored call record
@@ -231,7 +269,7 @@ if TWILIO_AVAILABLE:
         return Response(content="<Response></Response>", media_type="application/xml")
 
     @app.get("/twilio/calls")
-    def get_all_calls():
+    def get_all_calls(api_key: str = Depends(verify_api_key)):
         """Get all calls from local storage (for tech demo purposes)"""
         return {
             "success": True,
@@ -240,7 +278,9 @@ if TWILIO_AVAILABLE:
         }
 
     @app.post("/twilio/call")
-    async def call_make_twilio_call(request: TwilioCallRequest):
+    async def call_make_twilio_call(
+        request: TwilioCallRequest, api_key: str = Depends(verify_api_key)
+    ):
         # testing
         # print(f"Request received: {request}")
         # requestEcho = {
