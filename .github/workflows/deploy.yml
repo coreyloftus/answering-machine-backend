@@ -93,7 +93,6 @@ jobs:
             TWILIO_PHONE_NUMBER=${{ secrets.TWILIO_PHONE_NUMBER }}
             RICK_ROLL_API_KEY=${{ secrets.RICK_ROLL_API_KEY }}
             API_URL=https://${{ env.SERVICE }}-155276398322-${{ env.REGION }}.run.app
-            PORT=8080
 
       # If required, use the Cloud Run URL output in later steps
       - name: "Show output"
