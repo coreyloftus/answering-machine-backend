@@ -60,8 +60,7 @@ jobs:
         name: "Authenticate to Google Cloud"
         uses: "google-github-actions/auth@f112390a2df9932162083945e46d439060d66ec2" # google-github-actions/auth@v2
         with:
-          workload_identity_provider: "${{ env.WORKLOAD_IDENTITY_PROVIDER }}"
-          service_account: "${{ secrets.SERVICE_ACCOUNT_EMAIL }}"
+          credentials_json: "${{ secrets.SERVICE_ACCOUNT_KEY_JSON }}"
 
       # BEGIN - Docker auth and build
       #
